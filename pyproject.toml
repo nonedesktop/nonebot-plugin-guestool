@@ -1,0 +1,18 @@
+[project]
+name = "nonebot-plugin-guestool"
+version = "0.1.0"
+description = "适用于 NoneBot2 Guest Runtime 的集成工具"
+authors = [
+    {name = "HivertMoZara", email = "worldmozara@163.com"},
+]
+license = {text = "MIT"}
+dependencies = [
+    "nonebot2[websockets]>=2.0.0",
+    "psutil~=5.9"
+]
+requires-python = ">=3.8"
+readme = "README.md"
+
+[project.urls]
+Homepage = "https://github.com/nonedesktop/nonebot-plugin-guestool"
+Repository = "https://github.com/nonedesktop/nonebot-plugin-guestool"
