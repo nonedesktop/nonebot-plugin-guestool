@@ -94,6 +94,12 @@ class ProcessInfoDict(TypedDict):
     mem: int
 
 
+class _RawTimestampDict(TypedDict):
+    sysboot_ts: float
+    nonebot_ts: float
+
+
 class TimeInfoDict(TypedDict):
     system: float
     nonebot: float
+    raw: _RawTimestampDict

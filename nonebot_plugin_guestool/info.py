@@ -1,11 +1,11 @@
 import asyncio
-import json
 import os
 from pathlib import Path
 import platform
+import shlex
 import sys
 import time
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Union
 
 import psutil
 
@@ -191,12 +191,17 @@ async def info_processes(smptime: float = .1) -> List[ProcessInfoDict]:
     return [await _info_process(p, smptime) for p in psutil.process_iter()]
 
 
-def _linux_name_lsbrelease() -> Optional[str]:
-    lsbpath = Path("/etc/lsb-release")
-    if not lsbpath.is_file():
+def _linux_name_envlike_parse(
+    path: Union[str, Path],
+    distid_key: str,
+    distrel_key: str,
+    keep_linux_name: bool = False
+) -> Optional[str]:
+    relpath = Path(path)
+    if not relpath.is_file():
         return
     try:
-        lsb = lsbpath.read_text().strip()
+        rel = relpath.read_text().strip()
     except Exception:
         return
 
@@ -206,19 +211,53 @@ def _linux_name_lsbrelease() -> Optional[str]:
 
     _distro = _Distro()
 
-    for lns in lsb.splitlines():
+    for lns in rel.splitlines():
         try:
-            if lns.startswith("DISTRIB_ID="):
-                _distro.id = json.loads(lns[10:])
-            elif lns.startswith("DISTRIB_RELEASE="):
-                _distro.rel = json.loads(lns[16:])
+            if lns.startswith(f"{distid_key}="):
+                _distro.id, = shlex.split(lns[len(distid_key) + 1:])
+            elif lns.startswith(f"{distrel_key}="):
+                _distro.rel, = shlex.split(lns[len(distrel_key) + 1:])
         except Exception:
             return
 
     if not any((_distro.id, _distro.rel)):
         return
+    
+    if keep_linux_name and not _distro.id.endswith("Linux"):
+        _distro.id += " Linux"
 
-    return f"{_distro.id} Linux {_distro.rel}".strip()
+    return f"{_distro.id} {_distro.rel}".strip()
+
+
+def _linux_name_osrelease() -> Optional[str]:
+    return _linux_name_envlike_parse("/etc/os-release", "NAME", "BUILD_ID")
+
+
+def _linux_name_lsbrelease() -> Optional[str]:
+    return _linux_name_envlike_parse(
+        "/etc/lsb-release",
+        "DISTRIB_ID",
+        "DISTRIB_RELEASE",
+        keep_linux_name=True
+    )
+
+
+def _linux_name_issue() -> Optional[str]:
+    relpath = Path("/etc/issue")
+    if not relpath.is_file():
+        return
+    try:
+        rel = relpath.read_text().strip()
+    except Exception:
+        return
+    return (
+        rel
+        .replace(r"\l", "")
+        .replace(r"\n", "")
+        .replace(r"\r", "{release}")
+        .replace("()", "")
+        .strip()
+    )
 
 
 def info_system_name() -> str:
@@ -227,39 +266,32 @@ def info_system_name() -> str:
 
     if system == "Java":
         _, _, _, (system, release, machine) = platform.java_ver()
-    elif system == "Darwin":
+
+    if system == "Darwin":
         return f"MacOS {platform.mac_ver()[0]} {machine}"
     elif system == "Windows":
         return f"Windows {release} {platform.win32_edition()} {machine}"
     elif system == "Linux":
         if os.getenv("PREFIX") == "/data/data/com.termux/files/usr":
             # a strange platform
-            return f"Termux (Android) {release}"
+            return f"Termux (Android) {release} {machine}"
         elif os.getenv("ANDROID_ROOT") == "/system":
-            return f"Linux (Android) {release}"
-        elif distro := _linux_name_lsbrelease():
-            return f"{distro} {machine}"
-        try:
-            v = Path("/etc/issue").read_text()
-        except Exception:
-            v = f"Linux {release}"
-        else:
-            v = (
-                v.strip()
-                .replace(r"\l", "")
-                .replace(r"\n", "")
-                .replace(r"\r", release)
-                .replace("()", "")
-                .strip()
-            )
-        return f"{v} {machine}"
-    # strange platforms
-    return f"{system} {release}"
+            return f"Linux (Android) {release} {machine}"
+        elif distro := _linux_name_osrelease() or _linux_name_lsbrelease():
+            return f"{distro} {release} {machine}"
+        _issue = _linux_name_issue() or "Linux {release}"
+        return f"{_issue.format(release=release)} {machine}"
+
+    return f"{system} {release} {machine}"
 
 
 def info_time() -> TimeInfoDict:
     now = time.time()
     return {
         "system": now - sysboot_ts,
-        "nonebot": now - current_ts
+        "nonebot": now - current_ts,
+        "raw": {
+            "sysboot_ts": sysboot_ts,
+            "nonebot_ts": current_ts
+        }
     }
