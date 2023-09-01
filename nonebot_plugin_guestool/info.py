@@ -15,6 +15,7 @@ from .typing import (
     MemoryInfoDict,
     NetworkIODict,
     PartitionInfoDict,
+    PlatformInfoDict,
     ProcessInfoDict,
     PythonVersionDict,
     TimeInfoDict
@@ -230,7 +231,7 @@ def _linux_name_envlike_parse(
 
 
 def _linux_name_osrelease() -> Optional[str]:
-    return _linux_name_envlike_parse("/etc/os-release", "NAME", "BUILD_ID")
+    return _linux_name_envlike_parse("/etc/os-release", "NAME", "BUILD_ID", True)
 
 
 def _linux_name_lsbrelease() -> Optional[str]:
@@ -238,29 +239,30 @@ def _linux_name_lsbrelease() -> Optional[str]:
         "/etc/lsb-release",
         "DISTRIB_ID",
         "DISTRIB_RELEASE",
-        keep_linux_name=True
+        True
     )
 
 
-def _linux_name_issue() -> Optional[str]:
-    relpath = Path("/etc/issue")
-    if not relpath.is_file():
-        return
-    try:
-        rel = relpath.read_text().strip()
-    except Exception:
-        return
-    return (
-        rel
-        .replace(r"\l", "")
-        .replace(r"\n", "")
-        .replace(r"\r", "{release}")
-        .replace("()", "")
-        .strip()
-    )
+# def _linux_name_issue() -> Optional[str]:
+#     # [!!] Not reliable
+#     relpath = Path("/etc/issue")
+#     if not relpath.is_file():
+#         return
+#     try:
+#         rel = relpath.read_text().strip()
+#     except Exception:
+#         return
+#     return (
+#         rel
+#         .replace(r"\l", "")
+#         .replace(r"\n", "")
+#         .replace(r"\r", "{release}")
+#         .replace("()", "")
+#         .strip()
+#     )
 
 
-def info_system_name() -> str:
+def info_system_platform() -> PlatformInfoDict:
     system, _, release, version, machine, _ = platform.uname()
     system, release, version = platform.system_alias(system, release, version)
 
@@ -268,21 +270,26 @@ def info_system_name() -> str:
         _, _, _, (system, release, machine) = platform.java_ver()
 
     if system == "Darwin":
-        return f"MacOS {platform.mac_ver()[0]} {machine}"
+        system, release = "MacOS", platform.mac_ver()[0]
     elif system == "Windows":
-        return f"Windows {release} {platform.win32_edition()} {machine}"
+        release = f"{release} {platform.win32_edition()}"
     elif system == "Linux":
         if os.getenv("PREFIX") == "/data/data/com.termux/files/usr":
             # a strange platform
-            return f"Termux (Android) {release} {machine}"
+            system = "Termux (Android)"
         elif os.getenv("ANDROID_ROOT") == "/system":
-            return f"Linux (Android) {release} {machine}"
+            system = "Linux (Android)"
         elif distro := _linux_name_osrelease() or _linux_name_lsbrelease():
-            return f"{distro} {release} {machine}"
-        _issue = _linux_name_issue() or "Linux {release}"
-        return f"{_issue.format(release=release)} {machine}"
+            system = distro
+        # _issue = _linux_name_issue() or "Linux {release}"
+        # return f"{_issue.format(release=release)} {machine}"
 
-    return f"{system} {release} {machine}"
+    return {
+        "summary": f"{system} {release} {machine}",
+        "system": system,
+        "release": release,
+        "cpuarch": machine
+    }
 
 
 def info_time() -> TimeInfoDict:

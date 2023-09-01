@@ -94,6 +94,13 @@ class ProcessInfoDict(TypedDict):
     mem: int
 
 
+class PlatformInfoDict(TypedDict):
+    summary: str
+    system: str
+    release: str
+    cpuarch: str
+
+
 class _RawTimestampDict(TypedDict):
     sysboot_ts: float
     nonebot_ts: float
