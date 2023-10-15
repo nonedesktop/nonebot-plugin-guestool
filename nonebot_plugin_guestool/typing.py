@@ -81,16 +81,12 @@ class NetworkIODict(TypedDict):
     recv_bytes: int
 
 
-class _ProcessCPUPercentDict(TypedDict):
-    std: float
-    normalized: float
-
-
 class ProcessInfoDict(TypedDict):
     pid: int
     name: str
     age: float
-    cpu_perc: _ProcessCPUPercentDict
+    cpu_stdperc: float
+    cpu_normalized: float
     mem: int
 
 
@@ -101,12 +97,8 @@ class PlatformInfoDict(TypedDict):
     cpuarch: str
 
 
-class _RawTimestampDict(TypedDict):
-    sysboot_ts: float
-    nonebot_ts: float
-
-
 class TimeInfoDict(TypedDict):
     system: float
     nonebot: float
-    raw: _RawTimestampDict
+    system_ts: float
+    nonebot_ts: float

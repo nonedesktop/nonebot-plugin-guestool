@@ -180,10 +180,8 @@ async def _info_process(proc: psutil.Process, smptime: float = .1) -> ProcessInf
         "pid": pid,
         "name": name,
         "age": age,
-        "cpu_perc": {
-            "std": cpu,
-            "normalized": normalized
-        },
+        "cpu_stdperc": cpu,
+        "cpu_normalized": normalized,
         "mem": mem
     }
 
@@ -305,8 +303,6 @@ def info_time() -> TimeInfoDict:
     return {
         "system": now - sysboot_ts,
         "nonebot": now - current_ts,
-        "raw": {
-            "sysboot_ts": sysboot_ts,
-            "nonebot_ts": current_ts
-        }
+        "system_ts": sysboot_ts,
+        "nonebot_ts": current_ts
     }
