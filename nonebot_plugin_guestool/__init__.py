@@ -15,3 +15,7 @@ __plugin_meta__ = PluginMetadata(
 lconfig = Config.parse_obj(get_driver().config)
 """本插件配置信息。"""
 # 为避免检查器解析错误使用此变量名。
+
+from . import (  # noqa: E402
+    info as info, runtime as runtime
+)
