@@ -196,6 +196,7 @@ def _linux_name_envlike_parse(
     path: Union[str, Path],
     distid_key: str,
     distrel_key: str,
+    distrel_alt_key: Optional[str] = None,
     keep_linux_name: bool = False
 ) -> Optional[str]:
     relpath = Path(path)
@@ -209,6 +210,7 @@ def _linux_name_envlike_parse(
     class _Distro:
         id: str = ""
         rel: str = ""
+        rel1: str = ""
 
     _distro = _Distro()
 
@@ -218,11 +220,15 @@ def _linux_name_envlike_parse(
                 _distro.id, = shlex.split(lns[len(distid_key) + 1:])
             elif lns.startswith(f"{distrel_key}="):
                 _distro.rel, = shlex.split(lns[len(distrel_key) + 1:])
+            elif distrel_alt_key and lns.startswith(f"{distrel_alt_key}="):
+                _distro.rel1, = shlex.split(lns[len(distrel_alt_key) + 1:])
         except Exception:
             return
 
-    if not any((_distro.id, _distro.rel)):
+    if not any((_distro.id, _distro.rel, _distro.rel1)):
         return
+    
+    _distro.rel = _distro.rel or _distro.rel1
     
     if keep_linux_name and not _distro.id.endswith("Linux"):
         _distro.id += " Linux"
@@ -231,7 +237,9 @@ def _linux_name_envlike_parse(
 
 
 def _linux_name_osrelease() -> Optional[str]:
-    return _linux_name_envlike_parse("/etc/os-release", "NAME", "BUILD_ID", True)
+    return _linux_name_envlike_parse(
+        "/etc/os-release", "NAME", "VERSION", "BUILD_ID", True
+    )
 
 
 def _linux_name_lsbrelease() -> Optional[str]:
@@ -239,7 +247,7 @@ def _linux_name_lsbrelease() -> Optional[str]:
         "/etc/lsb-release",
         "DISTRIB_ID",
         "DISTRIB_RELEASE",
-        True
+        keep_linux_name=True
     )
 
 
