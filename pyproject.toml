@@ -16,3 +16,8 @@ readme = "README.md"
 [project.urls]
 Homepage = "https://github.com/nonedesktop/nonebot-plugin-guestool"
 Repository = "https://github.com/nonedesktop/nonebot-plugin-guestool"
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "click>=8.1.7",
+]
