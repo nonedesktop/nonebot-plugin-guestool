@@ -24,22 +24,28 @@ All messages should be expired 1 minute after the messages are sent. For all exp
 
 ## Operation list
 
-### Hello
+### Greet
 
-- name: `/hello`
-- desc: The first data pack to be sent when connected.
+- name: `/greet/{greet_type}`
+- desc: The first/last data pack to be sent when connecting/disconnecting.
 - content: `{}`
+
+#### Greet types
+
+- `hello`
+  - desc: The first data pack to be sent when connected.
+- `bye`
+  - desc: The first data pack to be sent before disconnecting.
 
 ### Info
 
-- name: `/info`
+- name: `/info/{info_name}`
 - desc: Get specific informations.
 - content:
 
   ```json
   {
-      "info": "{info_name}",
-      {(some extra parameters...)}
+      (some extra parameters...)
   }
   ```
 
