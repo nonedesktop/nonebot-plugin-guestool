@@ -1,4 +1,4 @@
-from typing import Literal, TypedDict, Union
+from typing import Any, Dict, Literal, TypedDict, Union
 
 
 class _PythonVersionInfoDict(TypedDict):
@@ -102,3 +102,9 @@ class TimeInfoDict(TypedDict):
     nonebot: float
     system_ts: float
     nonebot_ts: float
+
+
+class ConnectionMessageDict(TypedDict):
+    opid: str
+    opnm: str
+    opct: Dict[str, Any]
