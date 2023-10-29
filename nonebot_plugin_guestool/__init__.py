@@ -7,7 +7,7 @@ __plugin_meta__ = PluginMetadata(
     "NoneBot2 Guest Runtime 的集成工具，用于向外部管理程序暴露接口",
     "[无]",
     "library",
-    "https://github.com/nonedesktop/nonebot-plugin-guestoole",
+    "https://github.com/nonedesktop/nonebot-plugin-guestool",
     Config
 )
 
