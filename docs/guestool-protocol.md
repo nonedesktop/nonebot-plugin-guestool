@@ -90,4 +90,21 @@ All messages should be expired 1 minute after the messages are sent. For all exp
 
 ### Event
 
+#### Report
+
+- name: `/event/report/{report_type}`
+- desc: Report data from info/action requests.
+- content:
+
+  ```json
+  {
+      (data returned from requests...)
+  }
+  ```
+
+##### Report types
+
+- `info`: for info report.
+- `action`: for action report.
+
 ### Action
