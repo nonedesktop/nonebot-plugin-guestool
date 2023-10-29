@@ -5,7 +5,7 @@ from pydantic import UUID4, BaseModel
 class Message(BaseModel):
     opid: UUID4
     opnm: str
-    opct: dict[str, Any]
+    opct: str | int | float | bool | list[Any] | dict[str, Any] | None
 
 
 class GreetMessage(Message):
