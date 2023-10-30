@@ -1,8 +1,7 @@
 import asyncio
-from collections import deque
 from inspect import isawaitable
 import json
-from typing import Deque, Optional
+from typing import Optional
 from uuid import uuid4
 from nonebot import get_driver, logger
 from websockets.client import connect, WebSocketClientProtocol
@@ -31,8 +30,8 @@ lconfig = Config(**driver.config.dict())
 # 为避免检查器解析错误使用此变量名。
 
 conn: Optional[WebSocketClientProtocol] = None
-conn_task: asyncio.Task
-track: Deque[str] = deque()
+conn_task: Optional[asyncio.Task] = None
+_conn_restart_task: Optional[asyncio.Task] = None
 
 info_funcs = {
     "python_version": info_python_version,
@@ -51,6 +50,25 @@ info_funcs = {
 }
 
 
+async def _loop_process(data: ConnectionMessageDict):
+    assert conn
+    if data["opnm"].startswith("/info"):
+        try:
+            res = info_funcs[data["opnm"][6:]](**data["opct"])
+            if isawaitable(res):
+                res = await res
+        except KeyError as e:
+            res = {"error": "unknown info type"}
+            logger.opt(exception=e).warning("Received a wrong info type from server!")
+        await conn.send(
+            json.dumps(
+                ConnectionMessageDict(
+                    opid=data["opid"], opnm="/event/report/info", opct=res
+                )
+            )
+        )
+
+
 async def conn_loop():
     assert conn
     hello = json.dumps({"opid": str(uuid4()), "opnm": "/greet/hello", "opct": {}})
@@ -65,37 +83,37 @@ async def conn_loop():
         logger.error("Unexpected response, disconnecting...")
         await conn.close()
 
-    while conn.open:
-        data: ConnectionMessageDict = json.loads(await conn.recv())
-        logger.trace(f"Received {data!r}")
-        if data["opnm"].startswith("/info"):
-            res = info_funcs[data["opnm"][6:]](**data["opct"])
-            if isawaitable(res):
-                res = await res
-            await conn.send(
-                json.dumps(
-                    ConnectionMessageDict(
-                        opid=data["opid"], opnm="/event/report/info", opct=res
-                    )
-                )
-            )
+    async with asyncio.TaskGroup() as tg:
+        while conn.open:
+            data: ConnectionMessageDict = json.loads(await conn.recv())
+            logger.trace(f"Received {data!r}")
+            tg.create_task(_loop_process(data))
+
+    logger.info(f"Disconnected to management host {lconfig.guest_connection_hosturl}")
 
 
 @driver.on_startup
 async def init_connection():
-    global conn, conn_task
+    global conn, conn_task, _conn_restart_task
     if not lconfig.guest_connection_hosturl:
-        logger.info("[GuesTool] Not connecting to any management host as not configured")
+        logger.info("Not connecting to any management host as not configured")
         return
-    conn = await connect(lconfig.guest_connection_hosturl)
-    logger.info(f"[GuesTool] Connected to management host {lconfig.guest_connection_hosturl}")
-    conn_task = asyncio.create_task(conn_loop())
+    if _conn_restart_task:
+        await asyncio.sleep(5)
+    try:
+        conn = await connect(lconfig.guest_connection_hosturl)
+        logger.info(f"Connected to management host {lconfig.guest_connection_hosturl!r}")
+        conn_task = asyncio.create_task(conn_loop())
+    except ConnectionRefusedError:
+        logger.warning(f"Failed to connect to host {lconfig.guest_connection_hosturl!r}, is your host accessible?")
+        _conn_restart_task = asyncio.create_task(init_connection())
 
 
 @driver.on_shutdown
 async def stop_connection():
-    if conn is None:
-        return
-    conn_task.cancel()
-    await conn.close()
-    logger.info(f"[GuesTool] Disconnected to management host {lconfig.guest_connection_hosturl}")
+    if conn:
+        await conn.close()
+    if conn_task:
+        conn_task.cancel()
+    if _conn_restart_task:
+        _conn_restart_task.cancel()
