@@ -1,10 +1,12 @@
 import asyncio
+from contextlib import suppress
 from inspect import isawaitable
 import json
 from typing import Optional
 from uuid import uuid4
 from nonebot import get_driver, logger
 from websockets.client import connect, WebSocketClientProtocol
+from websockets.exceptions import ConnectionClosed
 
 from .config import Config
 from .info import (
@@ -32,6 +34,7 @@ lconfig = Config(**driver.config.dict())
 conn: Optional[WebSocketClientProtocol] = None
 conn_task: Optional[asyncio.Task] = None
 _conn_restart_task: Optional[asyncio.Task] = None
+_conn_queue: asyncio.Queue[asyncio.Task] = asyncio.Queue()
 
 info_funcs = {
     "python_version": info_python_version,
@@ -52,7 +55,10 @@ info_funcs = {
 
 async def _loop_process(data: ConnectionMessageDict):
     assert conn
-    if data["opnm"].startswith("/info"):
+    if data["opnm"] == "/greet/bye":
+        await conn.send(json.dumps(data))
+        await conn.close()
+    elif data["opnm"].startswith("/info"):
         try:
             res = info_funcs[data["opnm"][6:]](**data["opct"])
             if isawaitable(res):
@@ -83,11 +89,14 @@ async def conn_loop():
         logger.error("Unexpected response, disconnecting...")
         await conn.close()
 
-    async with asyncio.TaskGroup() as tg:
+    with suppress(ConnectionClosed):
         while conn.open:
             data: ConnectionMessageDict = json.loads(await conn.recv())
             logger.trace(f"Received {data!r}")
-            tg.create_task(_loop_process(data))
+            await _conn_queue.put(asyncio.create_task(_loop_process(data)))
+
+    while not _conn_queue.empty():
+        (await _conn_queue.get()).cancel()
 
     logger.info(f"Disconnected to management host {lconfig.guest_connection_hosturl}")
 
