@@ -108,3 +108,6 @@ class ConnectionMessageDict(TypedDict):
     opid: str
     opnm: str
     opct: Dict[str, Any]
+
+
+AllMatchTypes = Literal["startswith", "endswith", "fullmatch", "keywords", "command", "regex"]
