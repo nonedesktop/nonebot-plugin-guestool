@@ -1,11 +1,12 @@
 import asyncio
+import json
 from contextlib import suppress
 from inspect import isawaitable
-import json
 from typing import Optional
 from uuid import uuid4
+
 from nonebot import get_driver, logger
-from websockets.client import connect, WebSocketClientProtocol
+from websockets.client import WebSocketClientProtocol, connect
 from websockets.exceptions import ConnectionClosed
 
 from .config import Config
@@ -18,10 +19,17 @@ from .info import (
     info_processes,
     info_python_version,
     info_system_platform,
-    info_time
+    info_time,
 )
 from .runtime import (
-    info_apicall, info_bots, info_bots_connect_time, info_recv_events
+    get_matcher_data,
+    hack_matcher_by_id,
+    info_apicall,
+    info_bots,
+    info_bots_connect_time,
+    info_recv_events,
+    list_all_matchers,
+    remove_matcher_by_id,
 )
 from .typing import ConnectionMessageDict
 
@@ -52,6 +60,13 @@ info_funcs = {
     "apicall": info_apicall,
 }
 
+action_funcs = {
+    "matcher/list": list_all_matchers,
+    "matcher/info": get_matcher_data,
+    "matcher/hack": hack_matcher_by_id,
+    "matcher/remove": remove_matcher_by_id
+}
+
 
 async def _loop_process(data: ConnectionMessageDict):
     assert conn
@@ -70,6 +85,21 @@ async def _loop_process(data: ConnectionMessageDict):
             json.dumps(
                 ConnectionMessageDict(
                     opid=data["opid"], opnm="/event/report/info", opct=res
+                )
+            )
+        )
+    elif data["opnm"].startswith("/action"):
+        try:
+            res = info_funcs[data["opnm"][8:]](**data["opct"])
+            if isawaitable(res):
+                res = await res
+        except KeyError as e:
+            res = {"error": "unknown action type"}
+            logger.opt(exception=e).warning("Received a wrong action type from server!")
+        await conn.send(
+            json.dumps(
+                ConnectionMessageDict(
+                    opid=data["opid"], opnm="/event/report/action", opct=res
                 )
             )
         )

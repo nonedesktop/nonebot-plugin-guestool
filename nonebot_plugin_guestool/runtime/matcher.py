@@ -6,6 +6,8 @@ from nonebot import get_driver, logger
 from nonebot.internal.matcher import Matcher, matchers
 from nonebot.internal.rule import Rule
 from nonebot.matcher import MatcherManager
+
+# from nonebot.plugin import on
 from nonebot.rule import (
     CommandRule,
     EndswithRule,
@@ -158,12 +160,35 @@ def extract_matcher_rule_info(matcher: Type[Matcher]) -> RuleInfo:
 
 
 class MatcherData(BaseModel):
-    plugin_name: str
-    module_name: str
-    type: str
+    plugin_name: Optional[str]
+    module_name: Optional[str]
+    type: Union[Literal["", "metaevent", "message", "notice", "request"], str]
     rule: ValidRuleInfo
     priority: int
     block: bool
+    temp: bool
+    expire_time: Optional[float]
+
+
+def extract_matcher_info(ma: Type[Matcher]) -> MatcherData:
+    return MatcherData(
+        plugin_name=ma.plugin_name,
+        module_name=ma.module_name,
+        type=ma.type,
+        rule=extract_matcher_rule_info(ma),
+        priority=ma.priority,
+        block=ma.block,
+        temp=ma.temp,
+        expire_time=ma.expire_time and ma.expire_time.timestamp()
+    )
+
+
+def extract_matcher_info_by_id(id: str) -> MatcherData:
+    return extract_matcher_info(matcher_ids[id])
+
+
+# def create_matcher(dat: MatcherData):
+#     on()
 
 
 def update_priority(ma: Type[Matcher], after: int) -> None:
@@ -197,3 +222,9 @@ def hack_matcher(ma: Type[Matcher], ch: MatcherData) -> None:
 
 def hack_matcher_by_id(id: str, ch: MatcherData) -> None:
     return hack_matcher(matcher_ids[id], ch)
+
+
+def remove_matcher_by_id(id: str) -> None:
+    ma = matcher_ids[id]
+    matchers[ma.priority].remove(ma)
+    del matcher_ids[id]
