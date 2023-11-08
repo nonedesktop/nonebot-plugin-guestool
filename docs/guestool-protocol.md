@@ -108,3 +108,47 @@ All messages should be expired 1 minute after the messages are sent. For all exp
 - `action`: for action report.
 
 ### Action
+
+#### Manage matcher
+
+- name: `/action/matcher/{operation}`
+- desc: List, add, hack or remove matchers.
+- content:
+
+  ```json
+  {
+      (some extra parameters...)
+  }
+  ```
+
+##### Operations
+
+- `list`
+  - desc: list all found matcher IDs
+<!--
+- `add`
+  - desc: add a new matcher
+  - params:
+    - `type ("", "metaevent", "message", "notice", "request")`: type of events
+    - `rule (RuleDict)`: rule information for new matcher
+    - `priority (int)`: matcher response priority
+    - `block (bool)`: whether to block event propagation
+-->
+- `info`
+  - desc: get matcher info by ID
+  - params:
+    - `id (str)`: matcher index UUID
+- `hack`
+  - desc: hack an existing matcher
+  - params:
+    - `id (str)`: matcher index UUID
+    - `type ("", "metaevent", "message", "notice", "request")`: type of events
+    - `rule (RuleDict)`: rule information for matcher
+    - `priority (int)`: matcher response priority
+    - `block (bool)`: whether to block event propagation
+    - `temp (bool)`: whether to be removed after running
+    - `expire_time (float | none)`: when to be removed
+- `remove`
+  - desc: remove a matcher
+  - params:
+    - `id (str)`: matcher index UUID
